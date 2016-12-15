@@ -1,0 +1,22 @@
+{
+  "name": "afosto/bp",
+  "description": "Afosto boilerplate",
+  "type": "package",
+  "keywords": [
+    "afosto",
+    "boilerplate"
+  ],
+  "homepage": "https://afosto.com",
+  "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Afosto Team",
+      "homepage": "https://afosto.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Afosto\\Bp\\": "src"
+    }
+  }
+}
