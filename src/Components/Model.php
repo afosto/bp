@@ -11,6 +11,9 @@ abstract class Model {
      */
     protected $attributes = [];
 
+    /**
+     * Returns doc block formatting
+     */
     public static function getDocBlock() {
         $model = new static();
         foreach ($model->getRules() as $rule) {
@@ -19,6 +22,8 @@ abstract class Model {
     }
 
     /**
+     * Magic getter.
+     *
      * @param $name
      *
      * @return mixed
@@ -27,9 +32,13 @@ abstract class Model {
         if (isset($this->attributes[$name])) {
             return $this->attributes[$name]->value;
         }
+
+        return null;
     }
 
     /**
+     * Magic setter.
+     *
      * @param $name
      * @param $value
      */
@@ -43,6 +52,9 @@ abstract class Model {
         }
     }
 
+    /**
+     * Model constructor.
+     */
     public function __construct() {
         foreach ($this->getRules() as $rule) {
             $attribute = new Attribute($this, $rule);
@@ -50,23 +62,58 @@ abstract class Model {
         }
     }
 
+    /**
+     * Max length validator
+     *
+     * @param $length
+     * @param $key
+     *
+     * @throws ValidationException
+     */
     public function validateMaxLength($length, $key) {
         if (strlen($this->$key) > $length) {
             throw new ValidationException("{$key} is to long, maxLength is {$length}, " . strlen($this->$key) . " chars given");
         }
     }
 
+    /**
+     * Required validator
+     *
+     * @param $key
+     *
+     * @throws ValidationException
+     */
     public function validateRequired($key) {
         if ($this->$key === null) {
             throw new ValidationException("{$key} is required");
         }
     }
 
+    /**
+     * Validate doubles
+     *
+     * @param $key
+     */
     public function validateDouble($key) {
         $this->$key = number_format($this->$key, 2, '.', '');
     }
 
     /**
+     * Validate bool
+     *
+     * @param $key
+     *
+     * @throws ValidationException
+     */
+    public function validateBoolean($key) {
+        if (is_bool($this->$key)) {
+            throw new ValidationException("{$key} is no boolean: " . $this->$key . "  given");
+        }
+    }
+
+    /**
+     * Set the model's attributes
+     *
      * @param array $data
      */
     public function setAttributes(array $data) {
@@ -75,7 +122,30 @@ abstract class Model {
         }
     }
 
+    /**
+     * Return the key, allow models to do mapping
+     *
+     * @param $key
+     *
+     * @return mixed
+     */
+    protected function getFormattedKey($key) {
+        return $key;
+    }
+
+    /**
+     * Required, the model rules
+     *
+     * @return mixed
+     */
     abstract public function getRules();
+
+    /**
+     * Run preprocessing when required
+     */
+    protected function beforeGetAttributes() {
+        return true;
+    }
 
     /**
      * Returns the params as array
@@ -85,16 +155,19 @@ abstract class Model {
     public function getAttributes() {
         $data = [];
 
-        foreach ($this->attributes as $attribute) {
-            if ($attribute->value instanceof \ArrayObject) {
-                foreach ($attribute->value as $item) {
-                    $data[$this->getFormattedKey($attribute->key)][] = $item->getAttributes();
+        if ($this->beforeGetAttributes()) {
+
+            foreach ($this->attributes as $attribute) {
+                if ($attribute->value instanceof \ArrayObject) {
+                    foreach ($attribute->value as $item) {
+                        $data[$this->getFormattedKey($attribute->key)][] = $item->getAttributes();
+                    }
+                } else if ($attribute->value instanceof Model) {
+                    $data[$this->getFormattedKey($attribute->key)] = $attribute->value->getAttributes();
+                } else {
+                    $attribute->validate();
+                    $data[$this->getFormattedKey($attribute->key)] = $attribute->value;
                 }
-            } else if ($attribute->value instanceof Model) {
-                $data[$this->getFormattedKey($attribute->key)] = $attribute->value->getAttributes();
-            } else {
-                $attribute->validate();
-                $data[$this->getFormattedKey($attribute->key)] = $attribute->value;
             }
         }
 
