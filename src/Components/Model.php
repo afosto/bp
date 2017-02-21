@@ -22,6 +22,13 @@ abstract class Model {
     }
 
     /**
+     * @return static
+     */
+    public static function model() {
+        return new static();
+    }
+
+    /**
      * Magic getter.
      *
      * @param $name
@@ -118,19 +125,24 @@ abstract class Model {
      */
     public function setAttributes(array $data) {
         foreach ($data as $key => $value) {
+            $key = $this->getFormattedKey($key);
             $this->$key = $value;
         }
     }
 
+    protected function getMap() {
+        return [];
+    }
+
     /**
-     * Return the key, allow models to do mapping
+     * Returns the mapped key
      *
      * @param $key
      *
      * @return mixed
      */
     protected function getFormattedKey($key) {
-        return $key;
+        return array_key_exists($key, $this->getMap()) ? $this->getMap()[$key] : $key;
     }
 
     /**
@@ -141,10 +153,35 @@ abstract class Model {
     abstract public function getRules();
 
     /**
-     * Run preprocessing when required
+     * Before we validate the model
+     * @return bool
      */
-    protected function beforeGetAttributes() {
+    protected function beforeValidate() {
         return true;
+    }
+
+    /**
+     * Validate the model
+     * @return bool
+     */
+    public function validate() {
+        if ($this->beforeValidate()) {
+            foreach ($this->attributes as &$attribute) {
+                if ($attribute->value instanceof \ArrayObject) {
+                    foreach ($attribute->value as &$item) {
+                        $item->validate();
+                    }
+                } else if ($attribute->value instanceof Model) {
+                    $attribute->value->validate();
+                } else {
+                    $attribute->validate();
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -155,8 +192,7 @@ abstract class Model {
     public function getAttributes() {
         $data = [];
 
-        if ($this->beforeGetAttributes()) {
-
+        if ($this->validate()) {
             foreach ($this->attributes as $attribute) {
                 if ($attribute->value instanceof \ArrayObject) {
                     foreach ($attribute->value as $item) {
@@ -165,13 +201,12 @@ abstract class Model {
                 } else if ($attribute->value instanceof Model) {
                     $data[$this->getFormattedKey($attribute->key)] = $attribute->value->getAttributes();
                 } else {
-                    $attribute->validate();
                     $data[$this->getFormattedKey($attribute->key)] = $attribute->value;
                 }
             }
-        }
 
-        return $data;
+            return $data;
+        }
     }
 
 }
