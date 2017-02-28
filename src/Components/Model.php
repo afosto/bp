@@ -17,7 +17,7 @@ abstract class Model {
     public static function getDocBlock() {
         $model = new static();
         foreach ($model->getRules() as $rule) {
-            echo "* @property {$rule[1]} \${$rule[0]}\n";
+            echo "* @property {$rule[1]} \${$model->getFormattedKey($rule[0], true)}\n";
         }
     }
 
@@ -92,7 +92,7 @@ abstract class Model {
      */
     public function validateRequired($key) {
         if ($this->$key === null) {
-            throw new ValidationException("{$key} is required");
+            throw new ValidationException("{$key} is required for " . get_called_class());
         }
     }
 
@@ -123,9 +123,11 @@ abstract class Model {
      *
      * @param array $data
      */
-    public function setAttributes(array $data) {
+    public function setAttributes($data) {
+        if ($data instanceof Model) {
+            $data = $data->getAttributes();
+        }
         foreach ($data as $key => $value) {
-            $key = $this->getFormattedKey($key);
             $this->$key = $value;
         }
     }
@@ -190,23 +192,48 @@ abstract class Model {
      * @return array
      */
     public function getAttributes() {
-        $data = [];
-
-        if ($this->validate()) {
-            foreach ($this->attributes as $attribute) {
-                if ($attribute->value instanceof \ArrayObject) {
-                    foreach ($attribute->value as $item) {
-                        $data[$this->getFormattedKey($attribute->key)][] = $item->getAttributes();
-                    }
-                } else if ($attribute->value instanceof Model) {
-                    $data[$this->getFormattedKey($attribute->key)] = $attribute->value->getAttributes();
-                } else {
-                    $data[$this->getFormattedKey($attribute->key)] = $attribute->value;
-                }
-            }
-
-            return $data;
-        }
+        return $this->_toArray(false, false);
     }
 
+    /**
+     * Shorthand to return the formatted model
+     * Use the mapper (getMap) to transform the keys and validate the model data based on the rule set
+     *
+     * @return array
+     */
+    public function getModel() {
+        return $this->_toArray(true, true);
+    }
+
+    /**
+     * Map the object to array
+     *
+     * @param bool $validate
+     * @param bool $mapKeys
+     *
+     * @return array
+     */
+    private function _toArray($validate = false, $mapKeys = false) {
+        $callee = (($validate === $mapKeys && $mapKeys === true) ? 'getModel' : 'getAttributes');
+        $data = [];
+        if ($validate === true) {
+            $this->validate();
+        }
+
+        foreach ($this->attributes as $attribute) {
+            $key = ($mapKeys === true ? $this->getFormattedKey($attribute->key) : $attribute->key);
+
+            if ($attribute->value instanceof \ArrayObject) {
+                foreach ($attribute->value as $item) {
+                    $data[$key][] = $item->$callee();
+                }
+            } else if ($attribute->value instanceof Model) {
+                $data[$key] = $attribute->value->$callee();
+            } else {
+                $data[$key] = $attribute->value;
+            }
+        }
+
+        return $data;
+    }
 }
