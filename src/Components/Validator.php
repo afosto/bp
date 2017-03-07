@@ -2,6 +2,8 @@
 
 namespace Afosto\Bp\Components;
 
+use Afosto\Bp\Exceptions\ValidationException;
+
 class Validator {
 
     /**
@@ -56,6 +58,12 @@ class Validator {
     private $_type;
 
     /**
+     * Full namespaced path to the new model
+     * @var string
+     */
+    private $_modelPath;
+
+    /**
      * Validator constructor.
      *
      * @param Model $owner
@@ -68,13 +76,27 @@ class Validator {
         list($key, $type, $required, $validation) = $rule;
         $this->key = $key;
         $this->_owner = $owner;
+        $this->_type = $type;
+
         if (is_numeric($validation)) {
             $this->_callable = [$this->_owner, 'validateMaxLength'];
             $this->_callableParams = [$validation, $this->key];
-        } else if ($validation !== null && ($this->_getRelationType() == self::TYPE_VALUE || $this->_getRelationType() == self::TYPE_HAS_ONE)) {
+        } else if ($validation !== null && ($this->getRelationType() == self::TYPE_VALUE || $this->getRelationType() == self::TYPE_HAS_ONE)) {
             $this->_callable = [$this->_owner, $validation];
         }
-        $this->_type = $type;
+
+        if ($this->getRelationType() != self::TYPE_VALUE) {
+            $reflector = new \ReflectionClass($this->_owner);
+            if (substr($type, 0, 1) === '\\') {
+                $this->_modelPath = $this->_type;
+            } else {
+                if (substr($type, -2) === '[]') {
+                    $this->_modelPath = $reflector->getNamespaceName() . '\\' . substr($this->_type, 0, -2);
+                } else {
+                    $this->_modelPath = $reflector->getNamespaceName() . '\\' . $this->_type;
+                }
+            }
+        }
         $this->_required = (bool)$required;
     }
 
@@ -93,21 +115,22 @@ class Validator {
     }
 
     /**
-     * @return \ArrayObject|null
+     * @return Model
+     * @throws ValidationException
      */
-    public function getNewValue() {
-        if ($this->_getRelationType() == self::TYPE_MANY) {
-            return new \ArrayObject();
+    public function getNewModel() {
+        if (class_exists($this->_modelPath)) {
+            return new $this->_modelPath;
         }
 
-        return null;
+        throw new ValidationException('Model ' . $this->_modelPath . ' not found');
     }
 
     /**
-     * @return int
+     * @return integer
      */
-    public function _getRelationType() {
-        if (in_array($this->_type, ['string', 'integer', 'float', 'boolean'])) {
+    public function getRelationType() {
+        if (in_array($this->_type, ['string', 'integer', 'float', 'boolean', '\DateTime'])) {
             return self::TYPE_VALUE;
         } else if (substr($this->_type, -2) == '[]') {
             return self::TYPE_MANY;
@@ -115,5 +138,4 @@ class Validator {
             return self::TYPE_HAS_ONE;
         }
     }
-
 }
