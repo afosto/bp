@@ -36,8 +36,8 @@ abstract class Model {
      * @return mixed
      */
     public function __get($name) {
-        if (isset($this->attributes[$name])) {
-            return $this->attributes[$name]->value;
+        if ($this->getAttribute($name, true)) {
+            return $this->getAttribute($name)->value;
         }
 
         return null;
@@ -50,11 +50,11 @@ abstract class Model {
      * @param $value
      */
     public function __set($name, $value) {
-        if (isset($this->attributes[$name])) {
-            if ($this->attributes[$name] instanceof \ArrayObject) {
-                $this->attributes[$name]->value[] = $value;
+        if ($this->getAttribute($name)) {
+            if ($this->getAttribute($name) instanceof \ArrayObject) {
+                $this->getAttribute($name)->value[] = $value;
             } else {
-                $this->attributes[$name]->value = $value;
+                $this->getAttribute($name)->value = $value;
             }
         }
     }
@@ -128,10 +128,53 @@ abstract class Model {
             $data = $data->getAttributes();
         }
         foreach ($data as $key => $value) {
-            $this->$key = $value;
+            if ($this->getAttributeRelation($key) === Validator::TYPE_MANY) {
+                foreach ($value as $subValue) {
+                    $item = $this->getAttribute($key)->validator->getNewModel();
+                    $item->setAttributes($subValue);
+                    $this->{$key}[] = $item;
+                }
+            } else if ($this->getAttributeRelation($key) === Validator::TYPE_HAS_ONE) {
+                $newModel = $this->getAttribute($key)->validator->getNewModel();
+                $newModel->setAttributes($value);
+                $this->{$key} = $newModel;
+            } else {
+                $this->{$key} = $value;
+            }
         }
     }
 
+    /**
+     * @param $key
+     *
+     * @return integer
+     */
+    protected function getAttributeRelation($key) {
+        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
+            $attribute = $this->attributes[$this->getFormattedKey($key, true)];
+
+            return $attribute->validator->getRelationType();
+        }
+
+        return Validator::TYPE_VALUE;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return Attribute|bool
+     */
+    protected function getAttribute($key) {
+        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
+            return $this->attributes[$this->getFormattedKey($key, true)];
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array
+     */
     protected function getMap() {
         return [];
     }
@@ -140,11 +183,14 @@ abstract class Model {
      * Returns the mapped key
      *
      * @param $key
+     * @param $flip
      *
      * @return mixed
      */
-    protected function getFormattedKey($key) {
-        return array_key_exists($key, $this->getMap()) ? $this->getMap()[$key] : $key;
+    protected function getFormattedKey($key, $flip = false) {
+        $keys = (($flip) ? array_flip($this->getMap()) : $this->getMap());
+
+        return array_key_exists($key, $keys) ? $keys[$key] : $key;
     }
 
     /**

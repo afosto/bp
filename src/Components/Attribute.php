@@ -17,7 +17,7 @@ class Attribute {
     /**
      * @var Validator
      */
-    private $_validator;
+    public $validator;
 
     /**
      * Attribute constructor.
@@ -26,23 +26,18 @@ class Attribute {
      * @param       $rule
      */
     public function __construct(Model $owner, $rule) {
-        $this->_validator = new Validator($owner, $rule);
+        $this->validator = new Validator($owner, $rule);
         $this->key = current($rule);
-        $this->value = $this->_validator->getNewValue();
+        if ($this->validator->getRelationType() === Validator::TYPE_MANY) {
+            $this->value = new \ArrayObject();
+        }
     }
 
     /**
      * Runs the validation for this attribute
      */
     public function validate() {
-        $this->_validator->run();
-    }
-
-    /**
-     * @return Validator
-     */
-    public function getValidator() {
-        return $this->_validator;
+        $this->validator->run();
     }
 
 }
