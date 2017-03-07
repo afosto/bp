@@ -126,7 +126,10 @@ abstract class Model {
     public function setAttributes($data) {
         if ($data instanceof Model) {
             $data = $data->getAttributes();
+        } else if ($data === null) {
+            return;
         }
+
         foreach ($data as $key => $value) {
             if ($this->getAttributeRelation($key) === Validator::TYPE_MANY) {
                 foreach ($value as $subValue) {
