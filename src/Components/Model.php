@@ -12,16 +12,36 @@ abstract class Model {
     protected $attributes = [];
 
     /**
+     * @var \ReflectionClass
+     */
+    private $_reflection;
+
+    /**
+     * Required, the model rules
+     *
+     * @return mixed
+     */
+    abstract public function getRules();
+
+    /**
      * Returns doc block formatting
+     * @return array
      */
     public static function getDocBlock() {
-        $model = new static();
+        $model = static::model();
+        $docLines[] = '/**';
         foreach ($model->getRules() as $rule) {
-            echo "* @property {$rule[1]} \${$model->getFormattedKey($rule[0], true)}\n";
+            list($key, $property) = array_slice($rule, 0, 2);
+            $docLines[] = "* @property {$property} \${$model->getFormattedKey($key, true)}" . PHP_EOL;
         }
+        $docLines[] = '*/';
+
+        return $docLines;
     }
 
     /**
+     * Shortcut to return a new model
+     *
      * @return static
      */
     public static function model() {
@@ -36,7 +56,7 @@ abstract class Model {
      * @return mixed
      */
     public function __get($name) {
-        if ($this->getAttribute($name, true)) {
+        if ($this->getAttribute($name)) {
             return $this->getAttribute($name)->value;
         }
 
@@ -106,19 +126,6 @@ abstract class Model {
     }
 
     /**
-     * Validate bool
-     *
-     * @param $key
-     *
-     * @throws ValidationException
-     */
-    public function validateBoolean($key) {
-        if (is_bool($this->$key)) {
-            throw new ValidationException("{$key} is no boolean: " . $this->$key . "  given");
-        }
-    }
-
-    /**
      * Set the model's attributes
      *
      * @param array $data
@@ -145,70 +152,6 @@ abstract class Model {
                 $this->{$key} = $value;
             }
         }
-    }
-
-    /**
-     * @param $key
-     *
-     * @return integer
-     */
-    protected function getAttributeRelation($key) {
-        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
-            $attribute = $this->attributes[$this->getFormattedKey($key, true)];
-
-            return $attribute->validator->getRelationType();
-        }
-
-        return Validator::TYPE_VALUE;
-    }
-
-    /**
-     * @param $key
-     *
-     * @return Attribute|bool
-     */
-    protected function getAttribute($key) {
-        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
-            return $this->attributes[$this->getFormattedKey($key, true)];
-        }
-
-        return false;
-    }
-
-    /**
-     * @return array
-     */
-    protected function getMap() {
-        return [];
-    }
-
-    /**
-     * Returns the mapped key
-     *
-     * @param $key
-     * @param $flip
-     *
-     * @return mixed
-     */
-    protected function getFormattedKey($key, $flip = false) {
-        $keys = (($flip) ? array_flip($this->getMap()) : $this->getMap());
-
-        return array_key_exists($key, $keys) ? $keys[$key] : $key;
-    }
-
-    /**
-     * Required, the model rules
-     *
-     * @return mixed
-     */
-    abstract public function getRules();
-
-    /**
-     * Before we validate the model
-     * @return bool
-     */
-    protected function beforeValidate() {
-        return true;
     }
 
     /**
@@ -255,6 +198,91 @@ abstract class Model {
     }
 
     /**
+     * Return the namespace path
+     * @return string
+     */
+    public function getNameSpace() {
+        return $this->getReflection()->getNamespaceName();
+    }
+
+    /**
+     * Return the class name
+     * @return string
+     */
+    public function getShortName() {
+        return $this->getReflection()->getShortName();
+    }
+
+    /**
+     * @return \ReflectionClass
+     */
+    protected function getReflection() {
+        if ($this->_reflection === null) {
+            $this->_reflection = new \ReflectionClass($this);
+        }
+
+        return $this->_reflection;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return integer
+     */
+    protected function getAttributeRelation($key) {
+        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
+            $attribute = $this->attributes[$this->getFormattedKey($key, true)];
+
+            return $attribute->validator->getRelationType();
+        }
+
+        return Validator::TYPE_VALUE;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return Attribute|bool
+     */
+    protected function getAttribute($key) {
+        if (isset($this->attributes[$this->getFormattedKey($key, true)])) {
+            return $this->attributes[$this->getFormattedKey($key, true)];
+        }
+
+        return false;
+    }
+
+    /**
+     * Return the mapping in from to style
+     * @return array
+     */
+    protected function getMap() {
+        return [];
+    }
+
+    /**
+     * Returns the mapped key
+     *
+     * @param $key
+     * @param $flip
+     *
+     * @return mixed
+     */
+    protected function getFormattedKey($key, $flip = false) {
+        $keys = (($flip) ? array_flip($this->getMap()) : $this->getMap());
+
+        return array_key_exists($key, $keys) ? $keys[$key] : $key;
+    }
+
+    /**
+     * Before we validate the model
+     * @return bool
+     */
+    protected function beforeValidate() {
+        return true;
+    }
+
+    /**
      * Map the object to array
      *
      * @param bool $validate
@@ -285,4 +313,5 @@ abstract class Model {
 
         return $data;
     }
+
 }
