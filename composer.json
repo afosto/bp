@@ -18,5 +18,8 @@
     "psr-4": {
       "Afosto\\Bp\\": "src"
     }
+  },
+  "require-dev": {
+    "symfony/console": "^3.2"
   }
 }

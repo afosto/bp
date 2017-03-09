@@ -86,14 +86,17 @@ class Validator {
         }
 
         if ($this->getRelationType() != self::TYPE_VALUE) {
-            $reflector = new \ReflectionClass($this->_owner);
             if (substr($type, 0, 1) === '\\') {
-                $this->_modelPath = $this->_type;
-            } else {
-                if (substr($type, -2) === '[]') {
-                    $this->_modelPath = $reflector->getNamespaceName() . '\\' . substr($this->_type, 0, -2);
+                if ($this->getRelationType() === self::TYPE_MANY) {
+                    $this->_modelPath = substr($this->_type, 0, -2);
                 } else {
-                    $this->_modelPath = $reflector->getNamespaceName() . '\\' . $this->_type;
+                    $this->_modelPath = $this->_type;
+                }
+            } else {
+                if ($this->getRelationType() === self::TYPE_MANY) {
+                    $this->_modelPath = $this->_owner->getNameSpace() . '\\' . substr($this->_type, 0, -2);
+                } else {
+                    $this->_modelPath = $this->_owner->getNameSpace() . '\\' . $this->_type;
                 }
             }
         }
@@ -109,8 +112,28 @@ class Validator {
         }
 
         //Call the validation rule
-        if ($this->_owner->{$this->key} !== null && $this->_callable !== null) {
-            call_user_func_array($this->_callable, $this->_callableParams);
+        if ($this->_owner->{$this->key} !== null) {
+
+            //Cast the value
+            switch ($this->_type) {
+                case 'string':
+                    $this->_owner->{$this->key} = (string)$this->_owner->{$this->key};
+                    break;
+                case 'integer':
+                    $this->_owner->{$this->key} = (integer)$this->_owner->{$this->key};
+                    break;
+                case 'boolean':
+                    $this->_owner->{$this->key} = (bool)$this->_owner->{$this->key};
+                    break;
+                case 'float':
+                    $this->_owner->{$this->key} = (float)$this->_owner->{$this->key};
+                    break;
+            }
+
+            //Call the validation rule
+            if ($this->_callable !== null) {
+                call_user_func_array($this->_callable, $this->_callableParams);
+            }
         }
     }
 
