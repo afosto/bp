@@ -153,7 +153,7 @@ class Validator {
      * @return integer
      */
     public function getRelationType() {
-        if (in_array($this->_type, ['string', 'integer', 'float', 'boolean', '\DateTime'])) {
+        if (in_array($this->_type, ['string', 'integer', 'float', 'boolean', '\DateTime']) || (substr($this->_type, -2) == '[]' && strlen($this->_type) == 2)) {
             return self::TYPE_VALUE;
         } else if (substr($this->_type, -2) == '[]') {
             return self::TYPE_MANY;
