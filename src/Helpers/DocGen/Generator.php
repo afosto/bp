@@ -10,13 +10,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class Generator extends Command {
 
+    /**
+     * @var string
+     */
+    public $root;
+
     public function configure() {
         $this->setName('docgen')->setDescription('Scraper for model data');
         $this->addArgument('namespace', InputArgument::OPTIONAL, 'Directory of models (relative to root / src directory)?', 'Models');
     }
 
     public function execute(InputInterface $input, OutputInterface $output) {
-        $root = realpath(dirname(__FILE__) . '/../../') . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR;
+        $root = $this->root . DIRECTORY_SEPARATOR . '/src/' . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR;
         $directory = new \RecursiveDirectoryIterator($root);
         $iterator = new \RecursiveIteratorIterator($directory);
         $regex = new \RegexIterator($iterator, '/^.+\.php$/i', \RecursiveRegexIterator::GET_MATCH);
