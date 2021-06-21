@@ -139,11 +139,13 @@ abstract class Model {
 
         foreach ($data as $key => $value) {
             if ($this->getAttributeRelation($key) === Validator::TYPE_MANY) {
-                foreach ($value as $subValue) {
+               $this->{$key} = array_reduce($value, function ($values, $subValue) use ($key) {
                     $item = $this->getAttribute($key)->validator->getNewModel();
                     $item->setAttributes($subValue);
-                    $this->{$key}[] = $item;
-                }
+                    $values[] = $item;
+
+                    return $values;
+                }, []);
             } else if ($this->getAttributeRelation($key) === Validator::TYPE_HAS_ONE) {
                 $newModel = $this->getAttribute($key)->validator->getNewModel();
                 $newModel->setAttributes($value);
